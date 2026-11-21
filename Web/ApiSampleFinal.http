@@ -1,0 +1,133 @@
+@host = http://localhost:5000
+
+### ───── Granja ─────
+GET {{host}}/api/granja
+
+###
+PUT {{host}}/api/granja
+Content-Type: application/json
+
+{
+  "numeroVacas": 10,
+  "litrosPorVaca": 15,
+  "productos": [
+    { "tipo": "Queso",  "litrosPorUnidad": 10, "vidaUtilDias": 30, "precio": 28000 },
+    { "tipo": "Yogurt", "litrosPorUnidad": 1,  "vidaUtilDias": 15, "precio": 5000 }
+  ]
+}
+
+###
+GET {{host}}/api/granja/vacas
+
+### ───── Escenario de referencia (punto 8 del taller) ─────
+### Día 1: producción (n × l = 150 L), 100 L a queso y 50 L a yogurt
+POST {{host}}/api/produccion
+Content-Type: application/json
+
+{ "fecha": "2026-12-01" }
+
+###
+POST {{host}}/api/produccion/transformaciones
+Content-Type: application/json
+
+{ "fecha": "2026-12-01", "tipoProducto": "Queso", "litros": 100 }
+
+###
+POST {{host}}/api/produccion/transformaciones
+Content-Type: application/json
+
+{ "fecha": "2026-12-01", "tipoProducto": "Yogurt", "litros": 50 }
+
+### Día 2: producción y 150 L a queso
+POST {{host}}/api/produccion
+Content-Type: application/json
+
+{ "fecha": "2026-12-02" }
+
+###
+POST {{host}}/api/produccion/transformaciones
+Content-Type: application/json
+
+{ "fecha": "2026-12-02", "tipoProducto": "Queso", "litros": 150 }
+
+### Producción repetida el mismo día → 409
+POST {{host}}/api/produccion
+Content-Type: application/json
+
+{ "fecha": "2026-12-02" }
+
+### Transformar más leche de la que hay → 409
+POST {{host}}/api/produccion/transformaciones
+Content-Type: application/json
+
+{ "fecha": "2026-12-02", "tipoProducto": "Yogurt", "litros": 10 }
+
+### Día 3: vender 12 kg de queso → 201 (10 del lote 1 y 2 del lote 3)
+POST {{host}}/api/ventas
+Content-Type: application/json
+
+{ "tipoProducto": "Queso", "cantidad": 12, "fecha": "2026-12-03" }
+
+### Día 3: vender 20 L de yogurt → 201
+POST {{host}}/api/ventas
+Content-Type: application/json
+
+{ "tipoProducto": "Yogurt", "cantidad": 20, "fecha": "2026-12-03" }
+
+###
+GET {{host}}/api/ventas/1
+
+### Inventario vendible el día 3
+GET {{host}}/api/inventario?fecha=2026-12-03
+
+###
+GET {{host}}/api/inventario?fecha=2026-12-03&tipo=Queso
+
+###
+GET {{host}}/api/inventario/lotes/1
+
+### Día 17: procesar vencimientos → 30 L de yogurt pasan a dañado
+POST {{host}}/api/inventario/vencimientos?fecha=2026-12-17
+
+### Día 17: vender 5 L de yogurt → 409
+POST {{host}}/api/ventas
+Content-Type: application/json
+
+{ "tipoProducto": "Yogurt", "cantidad": 5, "fecha": "2026-12-17" }
+
+### ───── Reportes ─────
+GET {{host}}/api/reportes/ventas?desde=2026-12-01&hasta=2026-12-31
+
+###
+GET {{host}}/api/reportes/ventas?tipo=Queso
+
+###
+GET {{host}}/api/reportes/leche-diaria?desde=2026-12-01&hasta=2026-12-31
+
+###
+GET {{host}}/api/reportes/productodiario?desde=2026-12-01&hasta=2026-12-31
+
+###
+GET {{host}}/api/reportes/producto-total
+
+###
+GET {{host}}/api/reportes/productodanado?desde=2026-12-01&hasta=2026-12-31
+
+###
+GET {{host}}/api/reportes/vacas?desde=2026-12-01&hasta=2026-12-31
+
+### ───── Casos de error ─────
+### 400: cantidad inválida
+POST {{host}}/api/ventas
+Content-Type: application/json
+
+{ "tipoProducto": "Queso", "cantidad": 0 }
+
+### 400: rango de fechas al revés
+GET {{host}}/api/reportes/ventas?desde=2026-12-31&hasta=2026-12-01
+
+### 404: venta inexistente
+GET {{host}}/api/ventas/999
+
+### 404: lote inexistente
+GET {{host}}/api/inventario/lotes/999
